@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Example</title>
+</head>
+<body>
+<h1>WebSocket Example</h1>
+<div>
+    <label for="messageInput">Message Input</label><input id="messageInput" placeholder="Type a message" type="text">
+    <button onclick="sendMessage()">Send</button>
+</div>
+<div id="output"></div>
+
+<script>
+    const ws = new WebSocket(`{{ url_for('ws_room', room=room) }}`);
+    ws.withCredentials = true;
+
+    ws.onmessage = function (event) {
+        const outputDiv = document.getElementById("output");
+        outputDiv.innerHTML += `<p>Received: ${event.data}</p>`;
+    };
+
+    function sendMessage() {
+        const messageInput = document.getElementById("messageInput");
+        const message = messageInput.value;
+        ws.send(message);
+        messageInput.value = "";
+    }
+
+</script>
+</body>
+</html>

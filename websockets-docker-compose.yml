@@ -1,0 +1,79 @@
+x-postgres-base: &postgres-base
+  image: postgres:latest
+  shm_size: '4gb'
+  healthcheck:
+    test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+    start_period: 3s
+
+x-app-base: &app-base
+  build:
+    context: .
+    dockerfile: websockets.Dockerfile
+
+services:
+  websockets-postgres-dev:
+    profiles: [ "dev" ]
+    <<: *postgres-base
+    container_name: websockets-postgres-dev
+    env_file:
+      - .env.base
+      - .env.dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+      - websockets-postgres-dev:/var/lib/postgresql/data
+    networks:
+      - websockets-dev
+
+  websockets-app-dev:
+    profiles: [ "dev" ]
+    <<: *app-base
+    env_file:
+      - .env.base
+      - .env.dev
+    command: "poetry run python -m pytest -vv"
+    depends_on:
+      websockets-postgres-dev:
+        condition: service_healthy
+    networks:
+      - websockets-dev
+
+  websockets-postgres-test:
+    profiles: [ "test" ]
+    <<: *postgres-base
+    container_name: websockets-postgres-test
+    env_file:
+      - .env.base
+      - .env.test
+    volumes:
+      - ./postgres/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+    networks:
+      - websockets-test
+
+  websockets-app-test:
+    profiles: [ "test" ]
+    <<: *app-base
+    env_file:
+      - .env.base
+      - .env.test
+    depends_on:
+      websockets-postgres-test:
+        condition: service_healthy
+    networks:
+      - websockets-test
+
+volumes:
+  websockets-postgres-dev:
+    name: "websockets-postgres-dev"
+
+networks:
+  websockets-test:
+    name: websockets-test
+    driver: bridge
+  websockets-dev:
+    name: websockets-dev
+    driver: bridge
